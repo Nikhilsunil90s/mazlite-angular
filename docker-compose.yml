@@ -1,0 +1,96 @@
+version: '3'
+services:
+
+  #mongo
+  mazlite-db:
+    image: mongo:latest
+    container_name: mazlite-db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: 234i343k3
+    #ports:
+    #- "9222:27017"
+    volumes:
+      - dbdata:/data/db
+      - ./docker/database:/root/sample-db
+    networks:
+      - mazlite-app-network
+
+
+  mazlite-web-app:
+    build:
+      context: ./mazlite-angular
+      dockerfile: ./Dockerfile
+    container_name: mazlite-web-app
+    restart: unless-stopped
+    #command: ./node_modules/.bin/ng serve --host 0.0.0.0 --watch
+    command: ng serve --host 0.0.0.0 --watch
+    #command: tail -F /dev/null
+    tty: true
+    environment:
+      SERVICE_NAME: app
+      SERVICE_TAGS: dev
+    working_dir: /app
+    ports:
+      - "9220:4200"
+    # exclude vendor folder
+    depends_on:
+      - mazlite-fastapi-app
+    volumes:
+      - ./mazlite-angular/:/app
+      - /app/node_modules
+      #- ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+      #- /var/www/vendor
+    networks:
+      - mazlite-app-network
+
+  mazlite-fastapi-app:
+    build:
+      context: ./mazlite-fastapi
+      dockerfile: ./Dockerfile
+    container_name: mazlite-fastapi-app
+    restart: unless-stopped
+    #command: python manage.py runserver 0.0.0.0:8000
+    command: tail -F /dev/null
+    #command: sh docker-dev.sh
+    tty: true
+    environment:
+      SERVICE_NAME: app
+      SERVICE_TAGS: dev
+    working_dir: /app
+    ports:
+      - "9221:5000"
+    # exclude vendor folder
+    volumes:
+      - ./mazlite-fastapi:/app
+    networks:
+      - mazlite-app-network
+
+  mazlite-mongo-express-app:
+    image: mongo-express
+    container_name: mazlite-mongo-express-app
+    ports:
+      - 9223:8081
+    #volumes:
+    #  - ./.docker/mongo-express/docker-entrypoint.sh:/docker-entrypoint.sh
+    #env_file:
+    #  - .env
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mazlite-db
+      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+      ME_CONFIG_MONGODB_ADMINPASSWORD: 234i343k3
+      ME_CONFIG_BASICAUTH_USERNAME: root
+      ME_CONFIG_BASICAUTH_PASSWORD: 234i343k3
+    depends_on:
+      - mazlite-db
+    networks:
+      - mazlite-app-network
+
+
+#Docker Networks
+networks:
+  mazlite-app-network:
+    driver: bridge
+volumes:
+  dbdata:
+    driver: local
